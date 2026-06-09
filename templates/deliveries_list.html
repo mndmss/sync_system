@@ -1,0 +1,25 @@
+{% extends "sqladmin/list.html" %}
+
+{% block content %}
+    {# проверка, пуст ли список данных #}
+    {% if pagination.rows | length == 0 %}
+        <!-- контейнер на всю доступную высоту контента, центрирующий все внутри -->
+        <div class="col-12 d-flex align-items-center justify-content-center" style="min-height: 50vh;">
+            <!-- ограничение максимальной ширины карточки -->
+            <div class="alert alert-success p-5 text-center shadow-sm" style="max-width: 600px; border-radius: 12px;">
+                <div class="mb-3">
+                    <i class="fa-solid fa-circle-check text-success" style="font-size: 3rem;"></i>
+                </div>
+                <h4 class="alert-heading mb-2 fw-bold text-dark">
+                    Все посты успешно синхронизированы!
+                </h4>
+                <p class="m-0 text-secondary fs-5">
+                    Нет запланированных или проваленных доставок. Система работает штатно.
+                </p>
+            </div>
+        </div>
+    {% else %}
+        {# если данные есть - рендер стандартной таблицы #}
+        {{ super() }}
+    {% endif %}
+{% endblock %}

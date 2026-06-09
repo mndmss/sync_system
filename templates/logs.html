@@ -1,0 +1,34 @@
+{% extends "sqladmin/layout.html" %}
+
+{% block content %}
+<div class="col-12 font-monospace">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title">Логи системы синхронизации (Автообновление: 3с)</h3>
+            <button onclick="window.location.reload();" class="btn btn-sm btn-secondary">
+                <i class="fa-solid fa-sync"></i> Обновить вручную
+            </button>
+        </div>
+        <!-- для управления прокруткой через JS -->
+        <div id="log-container" class="card-body bg-dark text-light p-3" style="max-height: 75vh; overflow-y: auto; font-size: 13px;">
+            <pre class="m-0" style="white-space: pre-wrap;">{{ log_lines }}</pre>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("log-container");
+
+    if (container) {
+        // автоматическая прокрутка в самый низ при загрузке страницы
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // автообновление страницы каждые 3 секунды
+    setTimeout(function() {
+        window.location.reload();
+    }, 3000);
+});
+</script>
+{% endblock %}

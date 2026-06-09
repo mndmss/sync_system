@@ -1,0 +1,132 @@
+{% extends "sqladmin/list.html" %}
+
+{% block content %}
+<!-- верхняя подсказка для админа -->
+<div class="row d-block mb-3">
+    <div class="col-12">
+        <div class="alert alert-info border-0 shadow-sm d-flex align-items-center justify-content-center p-3 m-0 text-center mx-auto" style="border-radius: 8px; max-width: 100%;">
+            <i class="fa-solid fa-circle-info fs-4 me-3 text-info"></i>
+            <span class="fs-5 text-dark">
+                <strong>Обратите внимание:</strong> Любые изменения, внесенные в список источников ниже, сохраняются в черновик. Чтобы система синхронизации применила их в работе, обязательно нажмите кнопку <strong>«Применить изменения»</strong>.
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- управление системой -->
+<div class="col-12 mb-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-3 d-flex flex-column flex-md-row align-items-center justify-content-between bg-light" style="border-radius: 8px;">
+
+            <!-- статус слева -->
+            <div class="d-flex align-items-center mb-3 mb-md-0 flex-wrap">
+                <h5 class="m-0 me-3 fw-bold text-secondary fs-4">Управление системой:</h5>
+                {% if request.state.is_running %}
+                    <span class="btn btn-success disabled opacity-100 fw-bold px-3 py-2 text-white shadow-sm" style="pointer-events: none; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-play me-2"></i>Работает
+                    </span>
+                {% else %}
+                    <span class="btn btn-danger disabled opacity-100 fw-bold px-3 py-2 text-white shadow-sm" style="pointer-events: none; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-stop me-2"></i>Остановлена
+                    </span>
+
+                    {# если система остановлена и в таблице на экране мало записей #}
+                    {% if pagination.rows | length < 2 %}
+                         <span class="text-danger fw-bold ms-md-3 mt-2 mt-md-0 d-flex align-items-center" style="font-size: 0.9rem; animation: pulse 2s infinite;">
+                            <i class="fa-solid fa-triangle-exertion me-2 fs-5"></i>Для запуска нужно минимум 2 источника!
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- кнопки справа -->
+            <div class="d-flex flex-wrap align-items-center gap-3">
+
+                {# надпись для применения изменений (горит, пока проверяются pending задачи) #}
+                {% if request.state.reload_request %}
+                    <span class="text-success fw-bold text-center" style="font-size: 0.9rem; animation: pulse 2s infinite;">
+                        <i class="fa-solid fa-circle-notch fa-spin me-2"></i>Изменения применятся после синхронизации текущих постов...
+                    </span>
+                {% endif %}
+
+                {# надпись для стопа системы (горит, пока проверяются pending задачи) #}
+                {% if request.state.stop_request %}
+                    <span class="text-warning fw-bold text-center" style="font-size: 0.9rem; animation: pulse 2s infinite;">
+                        <i class="fa-solid fa-circle-notch fa-spin me-2"></i>Система остановится после завершения текущей очереди...
+                    </span>
+                {% endif %}
+
+                <style>
+                    @keyframes pulse {
+                        0% { opacity: 0.6; }
+                        50% { opacity: 1; }
+                        100% { opacity: 0.6; }
+                    }
+                </style>
+
+                {# кнопка Применить изменения #}
+                <form action="/admin/apply-changes" method="POST" onsubmit="showLoading(this)">
+                    <button type="submit" class="btn btn-success px-3"
+                            {% if request.state.reload_request or request.state.stop_request %}disabled{% endif %}>
+                        <i class="fa-solid fa-rotate me-2"></i>Применить изменения
+                    </button>
+                </form>
+
+                {# Кнопка Старт #}
+                <form action="/admin/start-system" method="POST" onsubmit="showLoading(this)">
+                    <button type="submit" class="btn btn-primary px-3"
+                            {% if request.state.is_running or request.state.reload_request or request.state.stop_request %}disabled{% endif %}>
+                        <i class="fa-solid fa-play me-2"></i>Старт
+                    </button>
+                </form>
+
+                {# Кнопка Стоп #}
+                <form action="/admin/stop-system" method="POST" onsubmit="showLoading(this)">
+                    <button type="submit" class="btn btn-danger px-3"
+                            {% if not request.state.is_running or request.state.reload_request or request.state.stop_request %}disabled{% endif %}>
+                        <i class="fa-solid fa-stop me-2"></i>Стоп
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showLoading(form) {
+    // находим все кнопки управления на дашборде
+    const allButtons = document.querySelectorAll('form[action*="-system"] button, form[action*="apply-changes"] button');
+
+    // отключение кликабельности для каждой кнопки на экране
+    allButtons.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('disabled');
+    });
+
+    // находим кнопку внутри формы, которую нажал пользователь
+    const clickedButton = form.querySelector('button');
+    if (clickedButton) {
+        // спиннер загрузки
+        clickedButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Выполняется...';
+    }
+}
+// автообновление для сброса флагов ожидания
+document.addEventListener("DOMContentLoaded", function() {
+    // проверка - горит ли сейчас на экране хотя бы одна из надписей ожидания синхронизации
+    const hasReloadRequest = {{ 'true' if request.state.reload_request else 'false' }};
+    const hasStopRequest = {{ 'true' if request.state.stop_request else 'false' }};
+
+    // если админка находится в процессе применения изменений или остановки
+    if (hasReloadRequest || hasStopRequest) {
+        // Каждые 1.5 секунды принудительно обновляем страницу, чтобы проверить, завершилась ли фоновая задача на сервере
+        setTimeout(function() {
+            window.location.reload();
+        }, 1500);
+    }
+});
+</script>
+
+<!-- таблица источников -->
+{{ super() }}
+
+{% endblock %}
